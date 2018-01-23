@@ -170,6 +170,13 @@ public class AtomicInteger extends Number implements java.io.Serializable {
     /**
      * Atomically adds the given value to the current value.
      *
+     * i++ 操作的原子实现
+     *
+     * 通过Unsafe对象实现int原子加操作，即根据内存偏移地址获取主内存中的值，并通过CAS进行加操作，
+     * 如果CAS操作失败，则重试；如果操作成功，则返回更新前的值
+     *
+     * compareAndSwapInt的参数分别为：当前对象值, 内存偏移地址, 当前主内存中的值（旧值）, 更新后的值
+     *
      * @param delta the value to add
      * @return the previous value
      */
@@ -180,18 +187,24 @@ public class AtomicInteger extends Number implements java.io.Serializable {
     /**
      * Atomically increments by one the current value.
      *
+     * ++i 操作的原子实现
+     *
      * @return the updated value
      */
     public final int incrementAndGet() {
+        // unsafe.getAndAddInt(this, valueOffset, 1) 原子地更新主内存中的值，并返回更新前的值，+1后返回的值与主内存中一致
         return unsafe.getAndAddInt(this, valueOffset, 1) + 1;
     }
 
     /**
      * Atomically decrements by one the current value.
      *
+     * --i 操作的原子实现
+     *
      * @return the updated value
      */
     public final int decrementAndGet() {
+        // // unsafe.getAndAddInt(this, valueOffset, -1) 原子地更新主内存中的值，并返回更新前的值，-1后返回的值与主内存中一致
         return unsafe.getAndAddInt(this, valueOffset, -1) - 1;
     }
 
