@@ -1256,8 +1256,11 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryRelease} but is otherwise uninterpreted and
      *        can represent anything you like.
      * @return the value returned from {@link #tryRelease}
+     *
+     * 释放写锁
      */
     public final boolean release(int arg) {
+        // 尝试释放锁
         if (tryRelease(arg)) {
             Node h = head;
             if (h != null && h.waitStatus != 0)
@@ -1277,8 +1280,11 @@ public abstract class AbstractQueuedSynchronizer
      * @param arg the acquire argument.  This value is conveyed to
      *        {@link #tryAcquireShared} but is otherwise uninterpreted
      *        and can represent anything you like.
+     *
+     * 获取读锁（共享锁）
      */
     public final void acquireShared(int arg) {
+        // 尝试获取读锁
         if (tryAcquireShared(arg) < 0)
             doAcquireShared(arg);
     }
@@ -1336,8 +1342,11 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryReleaseShared} but is otherwise uninterpreted
      *        and can represent anything you like.
      * @return the value returned from {@link #tryReleaseShared}
+     *
+     * 读锁的释放
      */
     public final boolean releaseShared(int arg) {
+        // 尝试释放读锁
         if (tryReleaseShared(arg)) {
             doReleaseShared();
             return true;
