@@ -157,16 +157,24 @@ public class ThreadLocal<T> {
      * @return the current thread's value of this thread-local
      */
     public T get() {
+        // 获取当前线程
         Thread t = Thread.currentThread();
+        // 获取当前线程中对应的ThreadLocalMap（ThreadLocalMap为线程的一个属性）
         ThreadLocalMap map = getMap(t);
         if (map != null) {
+            /*
+                ThreadLocalMap的key为ThreadLocal对象，value为对应的变量副本
+                此处获取当前ThreadLocal对象对应的Entry
+             */
             ThreadLocalMap.Entry e = map.getEntry(this);
             if (e != null) {
+                // 获取变量副本并返回
                 @SuppressWarnings("unchecked")
                 T result = (T)e.value;
                 return result;
             }
         }
+        // 如果ThreadLocalMap为空，则初始化
         return setInitialValue();
     }
 
@@ -177,7 +185,12 @@ public class ThreadLocal<T> {
      * @return the initial value
      */
     private T setInitialValue() {
+        // 默认初始化为null
         T value = initialValue();
+        /*
+            获取当前线程的ThreadLocalMap（若不存在则创建），
+            并将value放入ThreadLocalMap中
+         */
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         if (map != null)
@@ -197,6 +210,10 @@ public class ThreadLocal<T> {
      *        this thread-local.
      */
     public void set(T value) {
+        /*
+            获取当前线程的ThreadLocalMap（若不存在则创建），
+            并将value放入ThreadLocalMap中
+         */
         Thread t = Thread.currentThread();
         ThreadLocalMap map = getMap(t);
         if (map != null)
@@ -241,6 +258,7 @@ public class ThreadLocal<T> {
      * @param firstValue value for the initial entry of the map
      */
     void createMap(Thread t, T firstValue) {
+        // 为当前线程创建一个ThreadLocalMap对象并赋值给threadLocals，并存入第一个值(this表示当前ThreadLocal对象)
         t.threadLocals = new ThreadLocalMap(this, firstValue);
     }
 
@@ -304,6 +322,8 @@ public class ThreadLocal<T> {
          * == null) mean that the key is no longer referenced, so the
          * entry can be expunged from table.  Such entries are referred to
          * as "stale entries" in the code that follows.
+         *
+         * map中的每个节点Entry,其键key是ThreadLocal并且还是弱引用，这也导致了后续会产生内存泄漏问题的原因
          */
         static class Entry extends WeakReference<ThreadLocal<?>> {
             /** The value associated with this ThreadLocal. */
@@ -317,12 +337,16 @@ public class ThreadLocal<T> {
 
         /**
          * The initial capacity -- MUST be a power of two.
+         *
+         * 初始化容量为16，以为对其扩充也必须是2的指数
          */
         private static final int INITIAL_CAPACITY = 16;
 
         /**
          * The table, resized as necessary.
          * table.length MUST always be a power of two.
+         *
+         * 真正用于存储线程的每个ThreadLocal的数组，将ThreadLocal和其对应的值包装为一个Entry。
          */
         private Entry[] table;
 
