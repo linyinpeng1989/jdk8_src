@@ -1008,7 +1008,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /** Implementation for put and putIfAbsent */
     final V putVal(K key, V value, boolean onlyIfAbsent) {
+        // ConcurrentHashMap不支持null键，与HashMap不一样
         if (key == null || value == null) throw new NullPointerException();
+        // 根据key的hashCode，计算hash
         int hash = spread(key.hashCode());
         int binCount = 0;
         for (Node<K,V>[] tab = table;;) {

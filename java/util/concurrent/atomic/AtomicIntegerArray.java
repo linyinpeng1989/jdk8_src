@@ -61,6 +61,11 @@ public class AtomicIntegerArray implements java.io.Serializable {
         shift = 31 - Integer.numberOfLeadingZeros(scale);
     }
 
+    /**
+     * 校验数组下标是否越界
+     * @param i
+     * @return
+     */
     private long checkedByteOffset(int i) {
         if (i < 0 || i >= array.length)
             throw new IndexOutOfBoundsException("index " + i);

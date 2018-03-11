@@ -128,8 +128,12 @@ public class AtomicInteger extends Number implements java.io.Serializable {
      * @param update the new value
      * @return {@code true} if successful. False return indicates that
      * the actual value was not equal to the expected value.
+     *
+     * 原子更新
      */
     public final boolean compareAndSet(int expect, int update) {
+        // this表示AtomicInteger对象，valueOffset表示内存偏移量（内存地址）
+        // expect表示期望值，与内存中的实际值比较，如果相等则更新为update，如果不等则返回失败
         return unsafe.compareAndSwapInt(this, valueOffset, expect, update);
     }
 
@@ -213,8 +217,11 @@ public class AtomicInteger extends Number implements java.io.Serializable {
      *
      * @param delta the value to add
      * @return the updated value
+     *
+     * 线程安全地相加，并返回相加后的结果
      */
     public final int addAndGet(int delta) {
+        // valueOffset表示内存偏移量（内存地址）
         return unsafe.getAndAddInt(this, valueOffset, delta) + delta;
     }
 
