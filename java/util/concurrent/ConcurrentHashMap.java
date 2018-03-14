@@ -752,11 +752,13 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("unchecked")
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+        // 获取table中对应索引的元素
         return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
     }
 
     static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
+        // 如果成功则返回，如果CAS失败，说明有其它线程提前插入了节点，自旋重新尝试在这个位置插入节点。
         return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
 
@@ -836,6 +838,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     public ConcurrentHashMap(int initialCapacity) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException();
+        // 1.确保容量不超过最大限制
+        // 2.如果没有超过限制，则调用tableSizeFor方法确保table的大小总是2的幂次方
         int cap = ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1)) ?
                    MAXIMUM_CAPACITY :
                    tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1));
@@ -1015,32 +1019,42 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         int binCount = 0;
         for (Node<K,V>[] tab = table;;) {
             Node<K,V> f; int n, i, fh;
+            // 如果Node数组为空，则先进行初始化
             if (tab == null || (n = tab.length) == 0)
                 tab = initTable();
+            // 获取table中对应索引的元素，如果为空，则用初始化一个Node节点并用CAS插入
             else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
                 if (casTabAt(tab, i, null,
                              new Node<K,V>(hash, key, value, null)))
+                    // 如果CAS插入成功，说明Node节点已经插入，跳出循环
                     break;                   // no lock when adding to empty bin
             }
+            // 如果正在动态扩容，则一起进行扩容操作
             else if ((fh = f.hash) == MOVED)
                 tab = helpTransfer(tab, f);
             else {
                 V oldVal = null;
+                // 采用同步锁实现并发，把新的Node节点按链表或红黑树的方式插入到合适的位置
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
+                        // 从链表转换成红黑树时，会将Node转换为TreeNode
                         if (fh >= 0) {
                             binCount = 1;
+                            // 遍历链表并插入
                             for (Node<K,V> e = f;; ++binCount) {
                                 K ek;
+                                // 如果已经存在对应的key，判断是否需要更新
                                 if (e.hash == hash &&
                                     ((ek = e.key) == key ||
                                      (ek != null && key.equals(ek)))) {
                                     oldVal = e.val;
+                                    // 判断onlyIfAbsent，即是否不存在才插入。如果是不存在的时候才插入，则略过不更新
                                     if (!onlyIfAbsent)
                                         e.val = value;
                                     break;
                                 }
                                 Node<K,V> pred = e;
+                                // 如果插入Node没有后续节点，则初始化一个Node
                                 if ((e = e.next) == null) {
                                     pred.next = new Node<K,V>(hash, key,
                                                               value, null);
@@ -1048,6 +1062,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                 }
                             }
                         }
+                        // 如果是红黑树，则插入红黑树（通过自旋保持二叉平衡）
                         else if (f instanceof TreeBin) {
                             Node<K,V> p;
                             binCount = 2;
@@ -1061,6 +1076,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     }
                 }
                 if (binCount != 0) {
+                    // 如果元素大于等于8个，则转换为红黑树
                     if (binCount >= TREEIFY_THRESHOLD)
                         treeifyBin(tab, i);
                     if (oldVal != null)
@@ -2221,12 +2237,16 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Initializes table, using the size recorded in sizeCtl.
+     *
+     * sizeCtl在初始化期间设置为 -1，用于同步控制多线程同时进行初始化
      */
     private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         while ((tab = table) == null || tab.length == 0) {
+            // 如果一个线程发现sizeCtl<0，意味着另外的线程执行CAS操作成功，当前线程只需要让出cpu时间片
             if ((sc = sizeCtl) < 0)
                 Thread.yield(); // lost initialization race; just spin
+            // 如果sizeCtl不小于0，尝试将sizeCtl设置为 -1，成功则进行初始化操作
             else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
                 try {
                     if ((tab = table) == null || tab.length == 0) {
@@ -2237,6 +2257,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                         sc = n - (n >>> 2);
                     }
                 } finally {
+                    // 设置Node数组容量
                     sizeCtl = sc;
                 }
                 break;
