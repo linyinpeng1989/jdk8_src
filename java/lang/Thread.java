@@ -1229,6 +1229,7 @@ class Thread implements Runnable {
      *
      * @param  millis
      *         the time to wait in milliseconds
+     *         超时等待时间，0表示永久等待
      *
      * @throws  IllegalArgumentException
      *          if the value of {@code millis} is negative
@@ -1243,21 +1244,29 @@ class Thread implements Runnable {
         long base = System.currentTimeMillis();
         long now = 0;
 
+        // 超时时间小于0则抛出异常
         if (millis < 0) {
             throw new IllegalArgumentException("timeout value is negative");
         }
 
+        // 超时时间为0时，表示永久等待
         if (millis == 0) {
+            // 判断该线程（子线程）是否处于执行状态
             while (isAlive()) {
+                // 如果该线程处于执行状态，则主线程阻塞等待
                 wait(0);
             }
         } else {
+            // 判断该线程（子线程）是否处于执行状态
             while (isAlive()) {
+                // 计算剩余等待时间
                 long delay = millis - now;
                 if (delay <= 0) {
                     break;
                 }
+                // 阻塞等待，时间为delay
                 wait(delay);
+                // 计算目前等待时间
                 now = System.currentTimeMillis() - base;
             }
         }
