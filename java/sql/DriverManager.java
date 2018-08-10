@@ -96,6 +96,8 @@ public class DriverManager {
     /**
      * Load the initial JDBC drivers by checking the System property
      * jdbc.properties and then use the {@code ServiceLoader} mechanism
+     *
+     * 通过Java SPI机制加载数据库驱动，不需要再显示地调用Class.forName("com.mysql.jdbc.Driver")
      */
     static {
         loadInitialDrivers();
@@ -582,7 +584,7 @@ public class DriverManager {
 
         AccessController.doPrivileged(new PrivilegedAction<Void>() {
             public Void run() {
-
+                // 使用SPI的ServiceLoader来加载接口的实现，此处加载Driver接口并初始化成一个迭代器
                 ServiceLoader<Driver> loadedDrivers = ServiceLoader.load(Driver.class);
                 Iterator<Driver> driversIterator = loadedDrivers.iterator();
 
@@ -599,6 +601,7 @@ public class DriverManager {
                  * packaged as service and that service is there in classpath.
                  */
                 try{
+                    // 遍历Driver接口的迭代器
                     while(driversIterator.hasNext()) {
                         driversIterator.next();
                     }
