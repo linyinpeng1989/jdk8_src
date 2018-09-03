@@ -728,11 +728,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         @SuppressWarnings({"rawtypes","unchecked"})
             Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
         table = newTab;
+        // 遍历旧Node数组，并迁移到新Node数组指定位置（包含链表或红黑树中所有的元素）
         if (oldTab != null) {
             for (int j = 0; j < oldCap; ++j) {
                 Node<K,V> e;
                 if ((e = oldTab[j]) != null) {
+                    // 旧数组指定位置设为null，以便GC回收
                     oldTab[j] = null;
+                    // 如果没有下级节点，则直接赋值。e.hash & (newCap - 1)计算数组下标位置
                     if (e.next == null)
                         newTab[e.hash & (newCap - 1)] = e;
                     else if (e instanceof TreeNode)
