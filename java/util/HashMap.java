@@ -384,6 +384,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * Returns a power of two size for the given target capacity.
+     * 通过一系列位操作、或操作，确保最终数组大小为“比cap大的2的次幂值中最小的那个”，比如cap为11，则最终数组大小为16
+     *
+     * 比如cap为11时，二进制表示为 00001011，cap - 1 的二进制表示为 00001010，下面一系列位操作、或操作的目的是：将二进制中出现1的最高位及其后面所有位，全部设置为1，即
+     * 经过下面一系列操作，n的二进制表示为 00001111，则 n + 1 值为16
      */
     static final int tableSizeFor(int cap) {
         int n = cap - 1;
@@ -427,6 +431,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The next size value at which to resize (capacity * load factor).
+     *
+     * 扩容阈值，初始化时为数组大小。即第一次扩容时，判断是否超过数组容量（capacity），
+     * 后面扩容时判断是否超过扩容阈值（capacity * load factor）
      *
      * @serial
      */
@@ -649,16 +656,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             tab[i] = newNode(hash, key, value, null);
         else {
             Node<K,V> e; K k;
-            // 如果当前桶有值（ Hash 冲突），那么就要比较当前桶中的 key、key 的 hashcode 与写入的 key 是否相等
+            // 若与哈希桶当前元素匹配，则结束该if、else语句块，此时 e 即为匹配元素
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
-            // 如果当前桶为红黑树，那就要按照红黑树的方式写入数据
+            // 如果当前桶为红黑树，按照红黑树规则进行插入，若有匹配元素，则赋给变量 e
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
-            // 如果是个链表，就需要将当前的hashCode、 key、value 封装成一个新节点写入到当前桶的后面
+            // 如果是个链表的情况
             else {
+                // 遍历链表，查找该元素是否存在
                 for (int binCount = 0; ; ++binCount) {
+                    // 若链表中没有元素匹配，在创建新节点并放到链表尾部
                     if ((e = p.next) == null) {
                         p.next = newNode(hash, key, value, null);
                         // 判断当前链表的大小是否大于预设的阈值，大于时就要转换为红黑树
@@ -666,14 +675,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                             treeifyBin(tab, hash);
                         break;
                     }
-                    // 如果在遍历过程中找到 key 相同时直接退出遍历
+                    // 若链表中存在匹配元素，则结束for循环，此时 e 即为匹配元素
                     if (e.hash == hash &&
                         ((k = e.key) == key || (key != null && key.equals(k))))
                         break;
                     p = e;
                 }
             }
-            // 如果 e != null 就相当于存在相同的 key,那就需要将值覆盖
+            // 覆盖：如果 e 不为null，就相当于存在相同的 key,那就需要将旧值覆盖
             if (e != null) { // existing mapping for key
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
@@ -698,23 +707,30 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * with a power of two offset in the new table.
      *
      * @return the table
+     *
+     * 扩容
      */
     final Node<K,V>[] resize() {
         Node<K,V>[] oldTab = table;
+        // 计算当前数组长度及扩容阈值(2的幂次)
         int oldCap = (oldTab == null) ? 0 : oldTab.length;
         int oldThr = threshold;
         int newCap, newThr = 0;
+        // 当前数组不为空的情况
         if (oldCap > 0) {
             if (oldCap >= MAXIMUM_CAPACITY) {
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
+            // 如果新数组容量翻倍后不大于最大容量，且旧数组不小于默认初始容量，扩容阈值也翻倍
             else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
+        // 若当前数组长度为0，但扩容阈值不为0，将容量设置为当前扩容阈值
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
+        // 初始化操作
         else {               // zero initial threshold signifies using defaults
             newCap = DEFAULT_INITIAL_CAPACITY;
             newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
