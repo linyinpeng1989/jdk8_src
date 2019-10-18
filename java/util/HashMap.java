@@ -232,6 +232,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The default initial capacity - MUST be a power of two.
+     *
+     * 默认容量为16
      */
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
@@ -403,6 +405,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The number of key-value mappings contained in this map.
+     *
+     * 记录了Map中KV对的个数
      */
     transient int size;
 
@@ -418,6 +422,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * The next size value at which to resize (capacity * load factor).
      *
+     * 临界值，当实际KV个数超过threshold时，HashMap会将容量扩容，threshold＝容量*装载因子
+     *
      * @serial
      */
     // (The javadoc description is true upon serialization.
@@ -428,6 +434,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     /**
      * The load factor for the hash table.
+     *
+     * 装载因子，用来衡量HashMap满的程度
      *
      * @serial
      */
@@ -627,7 +635,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         Node<K,V>[] tab; Node<K,V> p; int n, i;
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
+
+        // 根据哈希表长度（底层数组长度）和散列值按位与操作，计算目标槽位下标并判断目标槽位是否为空
         if ((p = tab[i = (n - 1) & hash]) == null)
+            // 目标槽位为空，则创建Node作为表头结点
             tab[i] = newNode(hash, key, value, null);
         else {
             Node<K,V> e; K k;

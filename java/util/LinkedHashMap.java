@@ -218,6 +218,11 @@ public class LinkedHashMap<K,V>
 
     // internal utilities
 
+    /**
+     * LinkedHashMap额外维护了一个Entry双向链表，往LinkedHashMap中插入元素时，同时会将该元素添加到Entry链表的尾部
+     *
+     * @param p
+     */
     // link at the end of list
     private void linkNodeLast(LinkedHashMap.Entry<K,V> p) {
         LinkedHashMap.Entry<K,V> last = tail;
@@ -304,24 +309,36 @@ public class LinkedHashMap<K,V>
 
     void afterNodeAccess(Node<K,V> e) { // move node to last
         LinkedHashMap.Entry<K,V> last;
+        // accessOrder表示按照访问时间进行排序（类似LRU），创建LinkedHashMap时可以指定，默认为false
+        // 如果accessOrder为true，且访问的结点不是表尾节点，则将访问的节点移动到表尾
         if (accessOrder && (last = tail) != e) {
             LinkedHashMap.Entry<K,V> p =
                 (LinkedHashMap.Entry<K,V>)e, b = p.before, a = p.after;
             p.after = null;
+
+            // 如果p是表头结点，则将p的after结点设置成表头结点；
+            // 否则将p的before结点的after结点更新为p的after结点；
             if (b == null)
                 head = a;
             else
                 b.after = a;
+
+            // 如果p不是表尾结点，则将p的after结点的before结点更新为p的before结点；
+            // 否则将p的before结点设置为表尾结点
             if (a != null)
                 a.before = b;
             else
                 last = b;
+
+            // 设置p与原表尾结点的前后关系
             if (last == null)
                 head = p;
             else {
                 p.before = last;
                 last.after = p;
             }
+
+            // 将p设置为表尾结点
             tail = p;
             ++modCount;
         }

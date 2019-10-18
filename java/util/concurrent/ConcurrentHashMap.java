@@ -1023,7 +1023,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             if (tab == null || (n = tab.length) == 0)
                 tab = initTable();
             // 获取table中对应索引的元素，如果为空，则用初始化一个Node节点并用CAS插入
-            else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {
+            else if ((f = tabAt(tab, i = (n - 1) & hash)) == null) {o'l
                 if (casTabAt(tab, i, null,
                              new Node<K,V>(hash, key, value, null)))
                     // 如果CAS插入成功，说明Node节点已经插入，跳出循环
