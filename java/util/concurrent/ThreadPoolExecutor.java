@@ -591,6 +591,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * the thread actually starts running tasks, we initialize lock
      * state to a negative value, and clear it upon start (in
      * runWorker).
+     *
+     *
+     * 线程池中的任务都会被包装为一个内部 Worker 对象执行，且 Worker 本身实现了 Runnable 接口
      */
     private final class Worker
         extends AbstractQueuedSynchronizer
@@ -1046,6 +1049,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     private Runnable getTask() {
         boolean timedOut = false; // Did the last poll() time out?
 
+        // 无限循环，获取需要执行的任务
         for (;;) {
             int c = ctl.get();
             int rs = runStateOf(c);
@@ -1069,6 +1073,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             }
 
             try {
+                // 阻塞获取需要执行的任务
                 Runnable r = timed ?
                     workQueue.poll(keepAliveTime, TimeUnit.NANOSECONDS) :
                     workQueue.take();

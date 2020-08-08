@@ -78,6 +78,8 @@ import java.util.Spliterator;
  * @since 1.5
  * @author Doug Lea
  * @param <E> the type of elements held in this collection
+ *
+ * 使用ReentrantLock + Condition，实现生产者-消费者模式，使生产、消费两种操作不需要同步，可以同时调用
  */
 public class ArrayBlockingQueue<E> extends AbstractQueue<E>
         implements BlockingQueue<E>, java.io.Serializable {
@@ -385,40 +387,69 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
         }
     }
 
+    /**
+     * 非阻塞获取队列元素，若队列为空则返回null
+     *
+     * @return
+     */
     public E poll() {
         final ReentrantLock lock = this.lock;
+        // 加锁
         lock.lock();
         try {
+            // 队列为空则返回null，否则从队列获取一个元素
             return (count == 0) ? null : dequeue();
         } finally {
+            // 锁释放
             lock.unlock();
         }
     }
 
+    /**
+     * 阻塞获取队列元素，若队列为空则等待非空条件被满足
+     *
+     * @return
+     * @throws InterruptedException
+     */
     public E take() throws InterruptedException {
         final ReentrantLock lock = this.lock;
+        // 加锁，可中断
         lock.lockInterruptibly();
         try {
+            // 若队列为空，等待非空条件被满足
             while (count == 0)
                 notEmpty.await();
             return dequeue();
         } finally {
+            // 锁释放
             lock.unlock();
         }
     }
 
+    /**
+     * 阻塞获取队列元素，若队列为空则等待非空条件被满足，直到超时
+     *
+     * @param timeout
+     * @param unit
+     * @return
+     * @throws InterruptedException
+     */
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
         long nanos = unit.toNanos(timeout);
         final ReentrantLock lock = this.lock;
+        // 加锁，可中断
         lock.lockInterruptibly();
         try {
+            // 若队列为空且已经超时，返回null
             while (count == 0) {
                 if (nanos <= 0)
                     return null;
+                // 等待非空条件被满足
                 nanos = notEmpty.awaitNanos(nanos);
             }
             return dequeue();
         } finally {
+            // 锁释放
             lock.unlock();
         }
     }

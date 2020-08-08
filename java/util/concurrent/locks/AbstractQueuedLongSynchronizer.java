@@ -1624,6 +1624,8 @@ public abstract class AbstractQueuedLongSynchronizer
         /**
          * Adds a new waiter to wait queue.
          * @return its new wait node
+         *
+         * 往条件等待队列中新增一个等待节点
          */
         private Node addConditionWaiter() {
             Node t = lastWaiter;
@@ -1683,6 +1685,8 @@ public abstract class AbstractQueuedLongSynchronizer
          * particular target to unlink all pointers to garbage nodes
          * without requiring many re-traversals during cancellation
          * storms.
+         *
+         * 从条件等待队列中清除已取消等待的等待节点
          */
         private void unlinkCancelledWaiters() {
             Node t = firstWaiter;
@@ -1845,6 +1849,8 @@ public abstract class AbstractQueuedLongSynchronizer
                 throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
+
+            // 新增一个节点，并放入该条件的等待队列中
             Node node = addConditionWaiter();
             long savedState = fullyRelease(node);
             final long deadline = System.nanoTime() + nanosTimeout;
