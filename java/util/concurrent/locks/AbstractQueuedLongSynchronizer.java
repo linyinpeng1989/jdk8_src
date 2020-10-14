@@ -1648,6 +1648,9 @@ public abstract class AbstractQueuedLongSynchronizer
          * null. Split out from signal in part to encourage compilers
          * to inline the case of no waiters.
          * @param first (non-null) the first node on condition queue
+         *
+         *
+         * transferForSignal 方法将 Condition 条件等待队列的第一个节点加入到 AQS 锁阻塞队列中
          */
         private void doSignal(Node first) {
             do {

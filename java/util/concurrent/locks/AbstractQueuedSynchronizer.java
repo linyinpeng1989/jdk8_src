@@ -1282,7 +1282,7 @@ public abstract class AbstractQueuedSynchronizer
             // 释放锁后，唤醒 AQS 中阻塞队列的下一个节点（优化提升性能；使用 Condition 时，也可以在 Condition.signal() 方法中进行释放）
             if (h != null && h.waitStatus != 0)
                 unparkSuccessor(h);
-            return true;
+
         }
         return false;
     }
@@ -1708,6 +1708,7 @@ public abstract class AbstractQueuedSynchronizer
          */
         Node p = enq(node);
         int ws = p.waitStatus;
+        // 唤醒 AQS 阻塞队列中的阻塞线程
         if (ws > 0 || !compareAndSetWaitStatus(p, ws, Node.SIGNAL))
             LockSupport.unpark(node.thread);
         return true;
@@ -1896,6 +1897,8 @@ public abstract class AbstractQueuedSynchronizer
          * null. Split out from signal in part to encourage compilers
          * to inline the case of no waiters.
          * @param first (non-null) the first node on condition queue
+         *
+         * transferForSignal 方法将 Condition 条件等待队列的第一个节点加入到 AQS 锁阻塞队列中
          */
         private void doSignal(Node first) {
             do {
