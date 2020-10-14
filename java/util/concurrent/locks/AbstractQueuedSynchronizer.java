@@ -583,10 +583,12 @@ public abstract class AbstractQueuedSynchronizer
     private Node enq(final Node node) {
         for (;;) {
             Node t = tail;
+            // 如果链表为空，初始化链表（创建一个空节点），并将 head 和 tail 都指向这个 Node 对象
             if (t == null) { // Must initialize
                 if (compareAndSetHead(new Node()))
                     tail = head;
             } else {
+                // 将未获得锁的线程，添加到链表尾部
                 node.prev = t;
                 if (compareAndSetTail(t, node)) {
                     t.next = node;
@@ -601,6 +603,8 @@ public abstract class AbstractQueuedSynchronizer
      *
      * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
      * @return the new node
+     *
+     * 将未获得锁的线程加入到阻塞队列（双向链表）。mode 分为 独占模式（Node.EXCLUSIVE） 和 共享模式（Node.SHARED）
      */
     private Node addWaiter(Node mode) {
         Node node = new Node(Thread.currentThread(), mode);
@@ -608,11 +612,13 @@ public abstract class AbstractQueuedSynchronizer
         Node pred = tail;
         if (pred != null) {
             node.prev = pred;
+            // 使用 CAS 将未获得锁的线程加入到链表末尾
             if (compareAndSetTail(pred, node)) {
                 pred.next = node;
                 return node;
             }
         }
+        // 当 tail 节点为空时，初始化链表，并使用 CAS 将未获得锁的线程加入到链表末尾
         enq(node);
         return node;
     }
@@ -658,6 +664,7 @@ public abstract class AbstractQueuedSynchronizer
                 if (t.waitStatus <= 0)
                     s = t;
         }
+        // 唤醒 node 节点的下一个节点
         if (s != null)
             LockSupport.unpark(s.thread);
     }
@@ -833,6 +840,7 @@ public abstract class AbstractQueuedSynchronizer
      * @return {@code true} if interrupted
      */
     private final boolean parkAndCheckInterrupt() {
+        // 阻塞当前线程
         LockSupport.park(this);
         return Thread.interrupted();
     }
@@ -858,14 +866,19 @@ public abstract class AbstractQueuedSynchronizer
         boolean failed = true;
         try {
             boolean interrupted = false;
+            // 自旋并尝试抢占锁
             for (;;) {
+                // 获取当前抢占锁的线程节点的上一个节点
                 final Node p = node.predecessor();
+                // 如果 p 为 head 节点，则表示当前线程节点为链表第一个节点；并且尝试获取锁
                 if (p == head && tryAcquire(arg)) {
+                    // 当前线程获取锁成功后，将链表 head 指向当前线程节点（并将节点对应的thread、prev清除），并将原头结点设为 null 以便于 GC 资源回收
                     setHead(node);
                     p.next = null; // help GC
                     failed = false;
                     return interrupted;
                 }
+                // 尝试获取锁失败后，判断是否需要挂起线程，若需要进行挂起则进行挂起操作
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     interrupted = true;
@@ -1195,9 +1208,12 @@ public abstract class AbstractQueuedSynchronizer
      *        can represent anything you like.
      */
     public final void acquire(int arg) {
-        if (!tryAcquire(arg) &&
-            acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        // 调用 tryAcquire 方法尝试获取锁（子类实现），如果成功则直接返回；
+        // 否则先执行 addWaiter 方法，将未获得锁的线程加入到阻塞队列，
+        // 再执行 acquireQueued 方法抢占锁或者阻塞
+        if (!tryAcquire(arg) && acquireQueued(addWaiter(Node.EXCLUSIVE), arg)) {
             selfInterrupt();
+        }
     }
 
     /**
@@ -1263,6 +1279,7 @@ public abstract class AbstractQueuedSynchronizer
         // 尝试释放锁
         if (tryRelease(arg)) {
             Node h = head;
+            // 释放锁后，唤醒 AQS 中阻塞队列的下一个节点（优化提升性能；使用 Condition 时，也可以在 Condition.signal() 方法中进行释放）
             if (h != null && h.waitStatus != 0)
                 unparkSuccessor(h);
             return true;
@@ -1728,6 +1745,7 @@ public abstract class AbstractQueuedSynchronizer
     final int fullyRelease(Node node) {
         boolean failed = true;
         try {
+            // 完整地释放锁，即将 state 设置为 0，并将原 state 值返回；释放锁时会唤醒处于阻塞状态的下一个线程（AQS中的阻塞队列）
             int savedState = getState();
             if (release(savedState)) {
                 failed = false;
@@ -1853,6 +1871,8 @@ public abstract class AbstractQueuedSynchronizer
         /**
          * Adds a new waiter to wait queue.
          * @return its new wait node
+         *
+         * 将当前获得锁的线程包装成 Node，并添加到条件等待队列（单向链表）
          */
         private Node addConditionWaiter() {
             Node t = lastWaiter;
@@ -1861,6 +1881,7 @@ public abstract class AbstractQueuedSynchronizer
                 unlinkCancelledWaiters();
                 t = lastWaiter;
             }
+            // 将当前获得锁的线程包装成 Node，并添加到条件等待队列尾部（单向链表）
             Node node = new Node(Thread.currentThread(), Node.CONDITION);
             if (t == null)
                 firstWaiter = node;
@@ -2037,18 +2058,28 @@ public abstract class AbstractQueuedSynchronizer
          *      {@link #acquire} with saved state as argument.
          * <li> If interrupted while blocked in step 4, throw InterruptedException.
          * </ol>
+         *
+         * 阻塞当前获得锁的线程，直到相应条件满足
          */
         public final void await() throws InterruptedException {
             if (Thread.interrupted())
                 throw new InterruptedException();
+
+            // 为当前获得锁的线程创建节点，并添加到条件等待队列
             Node node = addConditionWaiter();
+
+            // 完整地释放独占锁（重入操作 state > 1）
             int savedState = fullyRelease(node);
             int interruptMode = 0;
+
+            // 判断当前获得锁的线程是否在同步队列中，若不在同步队列中，则进行阻塞等待
             while (!isOnSyncQueue(node)) {
                 LockSupport.park(this);
                 if ((interruptMode = checkInterruptWhileWaiting(node)) != 0)
                     break;
             }
+
+            // 当阻塞被 Condition.signal() 方法唤醒后，尝试抢占锁
             if (acquireQueued(node, savedState) && interruptMode != THROW_IE)
                 interruptMode = REINTERRUPT;
             if (node.nextWaiter != null) // clean up if cancelled
