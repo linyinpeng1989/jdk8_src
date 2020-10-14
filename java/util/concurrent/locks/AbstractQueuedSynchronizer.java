@@ -579,8 +579,11 @@ public abstract class AbstractQueuedSynchronizer
      * Inserts node into queue, initializing if necessary. See picture above.
      * @param node the node to insert
      * @return node's predecessor
+     *
+     * 将未获得锁的线程，包装成 Node 并放入到 AQS 的阻塞队列末尾
      */
     private Node enq(final Node node) {
+        // 自旋添加（当链表为空时，先初始化链表，然后再添加线程节点）
         for (;;) {
             Node t = tail;
             // 如果链表为空，初始化链表（创建一个空节点），并将 head 和 tail 都指向这个 Node 对象
@@ -866,7 +869,7 @@ public abstract class AbstractQueuedSynchronizer
         boolean failed = true;
         try {
             boolean interrupted = false;
-            // 自旋并尝试抢占锁
+            // 自旋并尝试抢占锁（若抢占失败，调用 LockSupport.park 阻塞线程；当被唤醒时继续执行）
             for (;;) {
                 // 获取当前抢占锁的线程节点的上一个节点
                 final Node p = node.predecessor();
