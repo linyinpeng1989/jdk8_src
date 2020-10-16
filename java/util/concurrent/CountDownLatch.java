@@ -197,6 +197,7 @@ public class CountDownLatch {
      */
     public CountDownLatch(int count) {
         if (count < 0) throw new IllegalArgumentException("count < 0");
+        // 初始化同步器， count 表示可共享资源数量
         this.sync = new Sync(count);
     }
 
@@ -228,6 +229,7 @@ public class CountDownLatch {
      *         while waiting
      */
     public void await() throws InterruptedException {
+        // 通过同步器申请共享资源，数量为 1
         sync.acquireSharedInterruptibly(1);
     }
 

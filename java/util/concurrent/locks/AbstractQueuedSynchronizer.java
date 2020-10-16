@@ -869,7 +869,7 @@ public abstract class AbstractQueuedSynchronizer
         boolean failed = true;
         try {
             boolean interrupted = false;
-            // 自旋并尝试抢占锁（若抢占失败，调用 LockSupport.park 阻塞线程；当被唤醒时继续执行）
+            // 自旋并尝试抢占独占锁（若抢占失败，调用 LockSupport.park 阻塞线程；当被唤醒时继续执行）
             for (;;) {
                 // 获取当前抢占锁的线程节点的上一个节点
                 final Node p = node.predecessor();
@@ -995,12 +995,18 @@ public abstract class AbstractQueuedSynchronizer
      */
     private void doAcquireSharedInterruptibly(int arg)
         throws InterruptedException {
+        // 将线程包装成 Node，并添加到 AQS 阻塞队列中，共享模式
         final Node node = addWaiter(Node.SHARED);
         boolean failed = true;
         try {
+            // 自旋并尝试抢占共享锁（若抢占失败，调用 LockSupport.park 阻塞线程；当被唤醒时继续执行）
             for (;;) {
+                // 获取当前抢占锁的线程节点的上一个节点
                 final Node p = node.predecessor();
+                // 如果 p 为 head 节点，则表示当前线程节点为链表第一个节点；并且尝试获取共享锁
                 if (p == head) {
+                    // 判断是否可以获取共享资源。当 state == 0 时，tryAcquireShared 返回 1，否则返回 -1。
+                    // 即 tryAcquireShared 小于 0 时可以获取共享资源
                     int r = tryAcquireShared(arg);
                     if (r >= 0) {
                         setHeadAndPropagate(node, r);
@@ -1009,6 +1015,8 @@ public abstract class AbstractQueuedSynchronizer
                         return;
                     }
                 }
+
+                // 当 tryAcquireShared 返回值小于 0 时，表示共享资源（CountDownLatch）可用，则阻塞当前线程。当 CountDownLatch.countDown 方法调用时进行唤醒
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     throw new InterruptedException();
@@ -1326,6 +1334,8 @@ public abstract class AbstractQueuedSynchronizer
             throws InterruptedException {
         if (Thread.interrupted())
             throw new InterruptedException();
+        // 判断是否可以获取共享资源。当 state == 0 时，tryAcquireShared 返回 1，否则返回 -1。
+        // 即 tryAcquireShared 小于 0 时可以获取共享资源
         if (tryAcquireShared(arg) < 0)
             doAcquireSharedInterruptibly(arg);
     }
