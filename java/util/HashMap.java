@@ -763,10 +763,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
+                        // 低位链表头 尾节点 也就是index不会变的
                         Node<K,V> loHead = null, loTail = null;
+                        // 高位链表头 尾节点 也就是index=index+oldSize的
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
                         do {
+                            /**
+                             * 比如扩容前数组长度为 oldCap=16，扩容后数组长度则为 newCap=32，高低位迁移实现如下：
+                             *  1、向 HashMap 中添加元素时，通过 hash & (oldCap - 1) 判断数组位置，其中 (oldCap - 1) = 15，
+                             *  其二进制表示为 0000 0000 0000 0000 0000 0000 0000 1111，因此数组下标会限定在 [0-15] 之间
+                             *  2、扩容后通过 hash & (newCap - 1) 计算数组位置，其中 (newCap - 1) = 31，
+                             *  其二进制表示为 0000 0000 0000 0000 0000 0000 0001 1111，因此数组下标会被限定在 [0-31]之间。
+                             *  有部分数据需要迁移到新的位置。
+                             *  3、通过 hash & oldCap 是否为 0，判断是否处于低位。其中 oldCap=16，其二进制表示为 0000 0000 0000 0000 0000 0000 0001 0000，
+                             *  若结果为 0 则表示 hash 处于低位（其二进制表示中右边 4 位之前的位置均为 0），即使翻倍扩容也不影响数组下标计算，不需要移动；
+                             *  若结果为非 0 则表示 hash 处于高位（其二进制表示中右边第 5 位肯定位 1），翻倍扩容后新的数组下标需要加上 oldCap（即 16）
+                             */
                             next = e.next;
                             if ((e.hash & oldCap) == 0) {
                                 if (loTail == null)
