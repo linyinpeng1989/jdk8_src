@@ -798,18 +798,22 @@ public abstract class AbstractQueuedSynchronizer
      * Returns true if thread should block. This is the main signal
      * control in all acquire loops.  Requires that pred == node.prev.
      *
-     * @param pred node's predecessor holding status
-     * @param node the node
+     * @param pred node's predecessor holding status 当前获取独占锁失败节点的上一个节点
+     * @param node the node 当前获取独占锁失败节点
      * @return {@code true} if thread should block
+     *
+     * 当获取独占锁失败后，判断是否需要挂起当前线程
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
         int ws = pred.waitStatus;
+        // ws == Node.SIGNAL 表示当前获取独占锁失败节点的上一个节点可以被唤醒
         if (ws == Node.SIGNAL)
             /*
              * This node has already set status asking a release
              * to signal it, so it can safely park.
              */
             return true;
+        // ws > 0 表示取消状态，循环地将取消状态的节点移除（Node.CANCELLED）
         if (ws > 0) {
             /*
              * Predecessor was cancelled. Skip over predecessors and
@@ -825,6 +829,7 @@ public abstract class AbstractQueuedSynchronizer
              * need a signal, but don't park yet.  Caller will need to
              * retry to make sure it cannot acquire before parking.
              */
+            // 将当前获取独占锁失败节点的上一个节点的状态更改为 Node.SIGNAL
             compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
         }
         return false;
@@ -873,7 +878,7 @@ public abstract class AbstractQueuedSynchronizer
             for (;;) {
                 // 获取当前抢占锁的线程节点的上一个节点
                 final Node p = node.predecessor();
-                // 如果 p 为 head 节点，则表示当前线程节点为链表第一个节点；并且尝试获取锁
+                // 如果 p 为 head 节点，则表示当前线程节点为链表第一个节点；并且尝试获取独占锁
                 if (p == head && tryAcquire(arg)) {
                     // 当前线程获取锁成功后，将链表 head 指向当前线程节点（并将节点对应的thread、prev清除），并将原头结点设为 null 以便于 GC 资源回收
                     setHead(node);
@@ -881,7 +886,7 @@ public abstract class AbstractQueuedSynchronizer
                     failed = false;
                     return interrupted;
                 }
-                // 尝试获取锁失败后，判断是否需要挂起线程，若需要进行挂起则进行挂起操作
+                // 尝试获取独占锁失败后，判断是否需要挂起线程，若需要进行挂起则进行挂起操作
                 if (shouldParkAfterFailedAcquire(p, node) &&
                     parkAndCheckInterrupt())
                     interrupted = true;

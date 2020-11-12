@@ -486,24 +486,29 @@ public class ThreadLocal<T> {
             int len = tab.length;
             int i = key.threadLocalHashCode & (len-1);
 
+            // 对应下标的 Entry 已经存在，通过线性探测查找：从计算获得的下标开始，依次遍历数组进行查找
             for (Entry e = tab[i];
                  e != null;
                  e = tab[i = nextIndex(i, len)]) {
                 ThreadLocal<?> k = e.get();
 
+                // 当对应下标的 Entry 的键与 key 相等，表示已经存在，此时更新目标的值
                 if (k == key) {
                     e.value = value;
                     return;
                 }
 
+                // 当对应下标的 Entry 不为空，但是键为空时，表示键被系统回收（弱引用），此时该 Entry 为脏对象，进行回收
                 if (k == null) {
                     replaceStaleEntry(key, value, i);
                     return;
                 }
             }
 
+            // 若应下标的 Entry 不存在，则在对应下标位置创建新的 Entry
             tab[i] = new Entry(key, value);
             int sz = ++size;
+            // 判断是否需要扩容
             if (!cleanSomeSlots(i, sz) && sz >= threshold)
                 rehash();
         }
@@ -540,6 +545,9 @@ public class ThreadLocal<T> {
          * @param  value the value to be associated with key
          * @param  staleSlot index of the first stale entry encountered while
          *         searching for key.
+         *
+         *
+         * 替换脏 Entry（即 Entry 中的键被 GC 回收的 Entry）
          */
         private void replaceStaleEntry(ThreadLocal<?> key, Object value,
                                        int staleSlot) {
@@ -552,6 +560,7 @@ public class ThreadLocal<T> {
             // incremental rehashing due to garbage collector freeing
             // up refs in bunches (i.e., whenever the collector runs).
             int slotToExpunge = staleSlot;
+            // 向前查找键为 null 的 Entry 对应的下标，直到前一个 Entry 中的键不为 null
             for (int i = prevIndex(staleSlot, len);
                  (e = tab[i]) != null;
                  i = prevIndex(i, len))
