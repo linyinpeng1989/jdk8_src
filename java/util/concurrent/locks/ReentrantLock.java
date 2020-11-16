@@ -149,7 +149,8 @@ public class ReentrantLock implements Lock, java.io.Serializable {
         }
 
         /**
-         * 尝试释放独占锁（本身处于锁保护状态下，不需要进行额外的同步操作）
+         * 尝试释放独占锁（本身处于锁保护状态下，不需要进行额外的同步操作），即设置节点状态为 0，独占线程为 null
+         *
          * @param releases
          * @return
          */
