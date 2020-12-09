@@ -153,12 +153,16 @@ public class CyclicBarrier {
     }
 
     /** The lock for guarding barrier entry */
+    // 用于保护屏障入口的锁
     private final ReentrantLock lock = new ReentrantLock();
     /** Condition to wait on until tripped */
+    // 线程等待条件
     private final Condition trip = lock.newCondition();
     /** The number of parties */
+    // 记录参与等待的线程数
     private final int parties;
     /* The command to run when tripped */
+    // 当所有线程到达屏障点之后，首先执行的命令
     private final Runnable barrierCommand;
     /** The current generation */
     private Generation generation = new Generation();
@@ -167,6 +171,8 @@ public class CyclicBarrier {
      * Number of parties still waiting. Counts down from parties to 0
      * on each generation.  It is reset to parties on each new
      * generation or when broken.
+     *
+     * 实际中仍在等待的线程数，每当有一个线程到达屏障点，count值就会减一；
      */
     private int count;
 
@@ -187,8 +193,11 @@ public class CyclicBarrier {
      * Called only while holding lock.
      */
     private void breakBarrier() {
+        // 重置中断状态为true
         generation.broken = true;
+        // 重置count值为parties
         count = parties;
+        // 将条件等待队列中所有Node迁移到 AQS 阻塞等待队列，等待唤醒
         trip.signalAll();
     }
 
@@ -198,6 +207,7 @@ public class CyclicBarrier {
     private int dowait(boolean timed, long nanos)
         throws InterruptedException, BrokenBarrierException,
                TimeoutException {
+        // 使用独占资源锁控制多线程并发进入这段代码
         final ReentrantLock lock = this.lock;
         lock.lock();
         try {
@@ -206,19 +216,23 @@ public class CyclicBarrier {
             if (g.broken)
                 throw new BrokenBarrierException();
 
+            // 如果线程中断，则重置栅栏
             if (Thread.interrupted()) {
                 breakBarrier();
                 throw new InterruptedException();
             }
 
+            // 每调用一次 await()方法，计数器就减一
             int index = --count;
             if (index == 0) {  // tripped
                 boolean ranAction = false;
                 try {
+                    // 当计数器值等于 0 时，表示所有线程到达屏障点，如果在创建CyclicBarrier实例时设置了barrierAction，则进行执行
                     final Runnable command = barrierCommand;
                     if (command != null)
                         command.run();
                     ranAction = true;
+                    // 当所有参与的线程都到达屏障点，为唤醒所有处于休眠状态的线程做准备工作。
                     nextGeneration();
                     return 0;
                 } finally {
@@ -230,8 +244,11 @@ public class CyclicBarrier {
             // loop until tripped, broken, interrupted, or timed out
             for (;;) {
                 try {
+                    // 让当前执行的线程阻塞，处于休眠状态；此时会将当前线程加入到条件等待队列，
+                    // 并释放独占锁，然后唤醒 AQS 阻塞队列中的头结点（非公平锁可能会被新线程抢占，即 AQS 阻塞队列中的节点抢占失败，继续阻塞等待）
                     if (!timed)
                         trip.await();
+                    // 让当前执行的线程阻塞，在超时时间内处于休眠状态
                     else if (nanos > 0L)
                         nanos = trip.awaitNanos(nanos);
                 } catch (InterruptedException ie) {
@@ -258,6 +275,7 @@ public class CyclicBarrier {
                 }
             }
         } finally {
+            // 释放独占锁
             lock.unlock();
         }
     }
@@ -273,6 +291,10 @@ public class CyclicBarrier {
      * @param barrierAction the command to execute when the barrier is
      *        tripped, or {@code null} if there is no action
      * @throws IllegalArgumentException if {@code parties} is less than 1
+     *
+     *
+     * CyclicBarrier支持一个可选的Runnable命令，在一组线程中的最后一个线程到达屏障点之后（但在释放所有线程之前），该命令只在所有线程到达屏障点之后运行一次，
+     * 并且该命令由最后一个进入屏障点的线程执行。
      */
     public CyclicBarrier(int parties, Runnable barrierAction) {
         if (parties <= 0) throw new IllegalArgumentException();
@@ -356,6 +378,8 @@ public class CyclicBarrier {
      *         waiting, or the barrier was reset, or the barrier was
      *         broken when {@code await} was called, or the barrier
      *         action (if present) failed due to an exception
+     *
+     * 该方法被调用时表示当前线程已经到达屏障点，当前线程阻塞进入休眠状态，直到所有线程都到达屏障点，当前线程才会被唤醒。
      */
     public int await() throws InterruptedException, BrokenBarrierException {
         try {

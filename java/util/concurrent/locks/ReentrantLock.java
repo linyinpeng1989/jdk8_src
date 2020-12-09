@@ -157,10 +157,12 @@ public class ReentrantLock implements Lock, java.io.Serializable {
         protected final boolean tryRelease(int releases) {
             // 计算新的状态值
             int c = getState() - releases;
+            // 如果当前线程不是持有锁的线程，抛异常
             if (Thread.currentThread() != getExclusiveOwnerThread())
                 throw new IllegalMonitorStateException();
             boolean free = false;
             // 如果状态标识为 0，表示锁可以被释放（若存在重入加锁情况，c 可能不为 0）
+            // 如果state的值不等于零，则表明线程持有的锁(可重入锁)还没有完全被释放
             if (c == 0) {
                 // 设置 free = true，独占线程为 null
                 free = true;
