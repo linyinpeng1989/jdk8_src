@@ -329,6 +329,8 @@ public class DriverManager {
      *               {@code DriverManager}
      * @exception SQLException if a database access error occurs
      * @exception NullPointerException if {@code driver} is null
+     *
+     * 将数据库驱动 Driver 注册到 DriverManager 中
      */
     public static synchronized void registerDriver(java.sql.Driver driver)
         throws SQLException {

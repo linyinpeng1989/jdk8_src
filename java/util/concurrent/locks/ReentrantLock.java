@@ -132,6 +132,7 @@ public class ReentrantLock implements Lock, java.io.Serializable {
             int c = getState();
             // 判断锁标识，是否已经释放
             if (c == 0) {
+                // 尝试获取锁，若成功则设置持有线程
                 if (compareAndSetState(0, acquires)) {
                     setExclusiveOwnerThread(current);
                     return true;
@@ -250,15 +251,18 @@ public class ReentrantLock implements Lock, java.io.Serializable {
          */
         protected final boolean tryAcquire(int acquires) {
             final Thread current = Thread.currentThread();
+            // 获取当前锁对象的 state 状态值
             int c = getState();
             if (c == 0) {
-                // 只有当链表中没有元素时，才允许抢占锁；否则返回失败，并继续自旋尝试
+                // hasQueuedPredecessors 判断 AQS 阻塞队列中是否有线程阻塞
+                // 只有当 AQS 阻塞队列中没有线程阻塞时，则尝试通过 CAS 修改 state，修改成功则表示抢占独占锁成功
                 if (!hasQueuedPredecessors() &&
                     compareAndSetState(0, acquires)) {
                     setExclusiveOwnerThread(current);
                     return true;
                 }
             }
+            // 判断是否重入
             else if (current == getExclusiveOwnerThread()) {
                 int nextc = c + acquires;
                 if (nextc < 0)

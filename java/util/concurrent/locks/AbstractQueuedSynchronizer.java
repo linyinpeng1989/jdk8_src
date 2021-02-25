@@ -385,19 +385,32 @@ public abstract class AbstractQueuedSynchronizer
         // 声明独占模式下的等待节点
         static final Node EXCLUSIVE = null;
 
-        /** waitStatus value to indicate thread has cancelled */
-        // waitStatus的一常量值，表示线程已取消
-        static final int CANCELLED =  1;
-        /** waitStatus value to indicate successor's thread needs unparking */
-        // waitStatus的一常量值，表示后继线程可以被唤醒
-        static final int SIGNAL    = -1;
-        /** waitStatus value to indicate thread is waiting on condition */
-        // waitStatus的一常量值，表示线程正在等待条件
+        /**
+         * waitStatus value to indicate thread has cancelled
+         * <p>
+         * 在同步队列中等待的线程等待超时或被中断，需要从同步队列中取消该Node的结点，
+         * 其结点的 waitStatus 为 CANCELLED，表示线程已取消（结束）
+         */
+        static final int CANCELLED = 1;
+        /**
+         * waitStatus value to indicate successor's thread needs unparking
+         * <p>
+         * 被标识为该等待唤醒状态的后继结点，当其前继结点的线程释放了同步锁或被取消，将会通知该后继结点的线程执行。
+         * 即 SIGNAL 表示后继线程可以被唤醒。
+         */
+        static final int SIGNAL = -1;
+        /**
+         * waitStatus value to indicate thread is waiting on condition
+         * <p>
+         * 与 Condition 相关，该标识的结点处于等待队列中，结点的线程等待在Condition上，当其他线程调用了Condition的signal()方法后，
+         * CONDITION 状态的结点将从等待队列转移到同步队列中，等待获取同步锁。
+         */
         static final int CONDITION = -2;
         /**
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
-         * waitStatus的一常量值，表示下一个acquireShared应无条件传播
+         * <p>
+         * waitStatus 的一常量值，表示下一个 acquireShared 应无条件传播
          */
         static final int PROPAGATE = -3;
 
@@ -819,19 +832,19 @@ public abstract class AbstractQueuedSynchronizer
      * @param pred node's predecessor holding status 当前获取独占锁失败节点的上一个节点
      * @param node the node 当前获取独占锁失败节点
      * @return {@code true} if thread should block
-     *
+     * <p>
      * 当获取独占锁失败后，判断是否需要挂起当前线程
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
         int ws = pred.waitStatus;
-        // ws == Node.SIGNAL 表示当前获取独占锁失败节点的上一个节点可以被唤醒
+        // ws == Node.SIGNAL 前驱节点状态 如果这个状态为 -1 则返回true，把当前线程挂起
         if (ws == Node.SIGNAL)
             /*
              * This node has already set status asking a release
              * to signal it, so it can safely park.
              */
             return true;
-        // ws > 0 表示取消状态，循环地将取消状态的节点移除（Node.CANCELLED）
+        // ws > 0 表示节点状态为 CANCELLED ，循环地将取消状态的节点移除（Node.CANCELLED）
         if (ws > 0) {
             /*
              * Predecessor was cancelled. Skip over predecessors and
