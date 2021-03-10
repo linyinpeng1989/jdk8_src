@@ -185,6 +185,7 @@ public class CountDownLatch {
                 if (c == 0)
                     return false;
                 int nextc = c-1;
+                // 通过 CAS 设置共享锁状态值 state
                 if (compareAndSetState(c, nextc))
                     return nextc == 0;
             }
@@ -295,6 +296,7 @@ public class CountDownLatch {
      * <p>If the current count equals zero then nothing happens.
      */
     public void countDown() {
+        // 释放一次共享锁
         sync.releaseShared(1);
     }
 

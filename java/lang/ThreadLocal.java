@@ -560,7 +560,7 @@ public class ThreadLocal<T> {
             // incremental rehashing due to garbage collector freeing
             // up refs in bunches (i.e., whenever the collector runs).
             int slotToExpunge = staleSlot;
-            // 向前查找键为 null 的 Entry 对应的下标，直到前一个 Entry 中的键不为 null
+            // 向前查找键为 null 值不为 null 的 Entry 对应的下标，并赋值给 slotToExpunge，直到前一个 Entry 为 null
             for (int i = prevIndex(staleSlot, len);
                  (e = tab[i]) != null;
                  i = prevIndex(i, len))
@@ -569,6 +569,7 @@ public class ThreadLocal<T> {
 
             // Find either the key or trailing null slot of run, whichever
             // occurs first
+            // 向后线性探测对应 Key 的 Entry，并重新设置 Value
             for (int i = nextIndex(staleSlot, len);
                  (e = tab[i]) != null;
                  i = nextIndex(i, len)) {

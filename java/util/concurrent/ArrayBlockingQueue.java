@@ -160,10 +160,15 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
         // assert lock.getHoldCount() == 1;
         // assert items[putIndex] == null;
         final Object[] items = this.items;
+        // 通过 putIndex 下标插入队列
         items[putIndex] = x;
+
+        // 循环利用
         if (++putIndex == items.length)
             putIndex = 0;
         count++;
+
+        // 通知 notEmpty（非空） 条件满足
         notEmpty.signal();
     }
 
@@ -175,14 +180,19 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
         // assert lock.getHoldCount() == 1;
         // assert items[takeIndex] != null;
         final Object[] items = this.items;
+
+        // 通过 takeIndex 下标获取队列元素，并将队列中相应元素置为 null
         @SuppressWarnings("unchecked")
         E x = (E) items[takeIndex];
         items[takeIndex] = null;
+        // 循环利用队列
         if (++takeIndex == items.length)
             takeIndex = 0;
         count--;
         if (itrs != null)
             itrs.elementDequeued();
+
+        // 通知 notFull（非满） 条件满足
         notFull.signal();
         return x;
     }
@@ -254,7 +264,10 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
     public ArrayBlockingQueue(int capacity, boolean fair) {
         if (capacity <= 0)
             throw new IllegalArgumentException();
+        // 初始化阻塞队列的数组
         this.items = new Object[capacity];
+
+        // 初始化 ReentrantLock 以及两个 Condition（notEmpty、notFull）
         lock = new ReentrantLock(fair);
         notEmpty = lock.newCondition();
         notFull =  lock.newCondition();
@@ -349,10 +362,13 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
     public void put(E e) throws InterruptedException {
         checkNotNull(e);
         final ReentrantLock lock = this.lock;
+        // 加锁，可中断
         lock.lockInterruptibly();
         try {
+            // 如果队列满了，则等待 notFull（非满） 条件满足
             while (count == items.length)
                 notFull.await();
+            // 添加到队列中
             enqueue(e);
         } finally {
             lock.unlock();
@@ -416,7 +432,7 @@ public class ArrayBlockingQueue<E> extends AbstractQueue<E>
         // 加锁，可中断
         lock.lockInterruptibly();
         try {
-            // 若队列为空，等待非空条件被满足
+            // 若队列为空，等待 notEmpty（非空） 条件被满足
             while (count == 0)
                 notEmpty.await();
             return dequeue();
