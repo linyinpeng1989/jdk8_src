@@ -1021,6 +1021,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         // 根据 key 的 hashCode，计算 hash
         int hash = spread(key.hashCode());
         int binCount = 0;
+
+        // 自旋：
+        //      1. 若数组未初始化，则第一次循环进行数组初始化
+        //      2. 数组初始化完成后，继续执行第二次循环进行赋值
         for (Node<K,V>[] tab = table;;) {
             Node<K,V> f; int n, i, fh;
             // 1. 如果 Node 数组为空，则先初始化 Node 数组
@@ -1042,8 +1046,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             // 4. 进行同步插入
             else {
                 V oldVal = null;
-                // 采用同步锁实现并发，把新的 Node节点按链表或红黑树的方式插入到合适的位置
+                // 采用同步锁实现并发，把新的 Node节点按链表或红黑树的方式插入到合适的位置（f 表示对应下标的数组 Node）
                 synchronized (f) {
+                    // 如果存在 hash 冲突
                     if (tabAt(tab, i) == f) {
                         // 从链表转换成红黑树时，会将Node转换为TreeNode
                         if (fh >= 0) {
@@ -1051,7 +1056,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                             // 遍历链表并插入
                             for (Node<K,V> e = f;; ++binCount) {
                                 K ek;
-                                // 如果已经存在对应的key，判断是否需要更新
+                                // 如果已经存在对应的key，判断是否需要更新（覆盖）
                                 if (e.hash == hash &&
                                     ((ek = e.key) == key ||
                                      (ek != null && key.equals(ek)))) {
@@ -2302,13 +2307,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             !U.compareAndSwapLong(this, BASECOUNT, b = baseCount, s = b + x)) {
             CounterCell a; long v; int m;
             boolean uncontended = true;
-            // as == null || (m = as.length - 1) < 0，判断 counterCells 是否为空
-            // (a = as[ThreadLocalRandom.getProbe() & m]) == null，通过随机函数获取对应下标的 CounterCell，并判断是否为空
-            // uncontended = U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))，更新对应 CounterCell 的值是否成功
+            // as == null || (m = as.length - 1) < 0，判断 counterCells 是否为空，为空则执行 fullAddCount 方法进行初始化
+            // (a = as[ThreadLocalRandom.getProbe() & m]) == null，通过随机函数获取对应下标的 CounterCell 并判断是否为空，为空则执行 fullAddCount 方法进行初始化
+            // uncontended = U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))，更新对应 CounterCell 的值是否成功，失败则执行 fullAddCount 触发扩容
             if (as == null || (m = as.length - 1) < 0 ||
                 (a = as[ThreadLocalRandom.getProbe() & m]) == null ||
-                !(uncontended =
-                  U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
+                !(uncontended = U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))) {
                 // 如果 counterCells 为空，或对应下标的 CounterCell 为空，或者 CounterCell 更新数据失败，则通过 fullAddCount 进行更新
                 fullAddCount(x, uncontended);
                 return;
@@ -2336,6 +2340,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
                         transfer(tab, nt);
                 }
+                // 当前没有线程在扩容，则将 sc 进行位操作，并 +2
                 else if (U.compareAndSwapInt(this, SIZECTL, sc,
                                              (rs << RESIZE_STAMP_SHIFT) + 2))
                     transfer(tab, null);
@@ -2642,7 +2647,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 else if (!wasUncontended)       // CAS already known to fail
                     wasUncontended = true;      // Continue after rehash
 
-                // 若对应的 CounterCell 已经初始化，则通过 CAS 更新计数值
+                // 若对应的 CounterCell 已经初始化，则通过 CAS 更新计数值，若失败则执行后续的数组扩容
                 else if (U.compareAndSwapLong(a, CELLVALUE, v = a.value, v + x))
                     break;
                 else if (counterCells != as || n >= NCPU)

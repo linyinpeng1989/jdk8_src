@@ -186,6 +186,7 @@ public class FutureTask<V> implements RunnableFuture<V> {
      * @throws CancellationException {@inheritDoc}
      */
     public V get() throws InterruptedException, ExecutionException {
+        // 根据状态判断任务是否执行完成，未完成则调用 awaitDone 阻塞当前线程
         int s = state;
         if (s <= COMPLETING)
             s = awaitDone(false, 0L);
@@ -230,6 +231,7 @@ public class FutureTask<V> implements RunnableFuture<V> {
         if (UNSAFE.compareAndSwapInt(this, stateOffset, NEW, COMPLETING)) {
             outcome = v;
             UNSAFE.putOrderedInt(this, stateOffset, NORMAL); // final state
+            // 线程异步执行完成并设置 outcome 完成后，唤醒阻塞等待的线程
             finishCompletion();
         }
     }

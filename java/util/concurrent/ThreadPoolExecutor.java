@@ -344,14 +344,14 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      *
      * The runState provides the main lifecycle control, taking on values:
      *
-     *   RUNNING:  Accept new tasks and process queued tasks
-     *   SHUTDOWN: Don't accept new tasks, but process queued tasks
-     *   STOP:     Don't accept new tasks, don't process queued tasks,
+     *   RUNNING:  Accept new tasks and process queued tasks            能接受新提交的任务，并且也能处理阻塞队列中的任务
+     *   SHUTDOWN: Don't accept new tasks, but process queued tasks     关闭状态，不再接受新提交的任务，但却可以继续处理阻塞队列中已保存的任务
+     *   STOP:     Don't accept new tasks, don't process queued tasks,  不能接受新任务，也不处理阻塞队列中的任务，会中断正在处理任务的线程
      *             and interrupt in-progress tasks
-     *   TIDYING:  All tasks have terminated, workerCount is zero,
+     *   TIDYING:  All tasks have terminated, workerCount is zero,      所有的任务都已终止了，workerCount（有效线程数）为 0
      *             the thread transitioning to state TIDYING
      *             will run the terminated() hook method
-     *   TERMINATED: terminated() has completed
+     *   TERMINATED: terminated() has completed                         在 terminated() 方法执行完后进入该状态
      *
      * The numerical order among these values matters, to allow
      * ordered comparisons. The runState monotonically increases over
@@ -377,9 +377,14 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
      * we can only terminate if, after seeing that it is empty, we see
      * that workerCount is 0 (which sometimes entails a recheck -- see
      * below).
+     *
+     *
+     * 维护线程池的运行状态(runState)、线程数量 (workerCount)，高3位保存runState，低29位保存workerCount，两个变量之间互不干扰
      */
     private final AtomicInteger ctl = new AtomicInteger(ctlOf(RUNNING, 0));
+    // 低 29 位用于维护线程数量
     private static final int COUNT_BITS = Integer.SIZE - 3;
+    // 11111111111111111111111111111 （29位）
     private static final int CAPACITY   = (1 << COUNT_BITS) - 1;
 
     // runState is stored in the high-order bits
@@ -920,6 +925,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
                 return false;
 
             for (;;) {
+                // 计算当前运行的线程数，并判断是否超出了核心线程数或最大线程数
                 int wc = workerCountOf(c);
                 if (wc >= CAPACITY ||
                     wc >= (core ? corePoolSize : maximumPoolSize))
@@ -1058,7 +1064,7 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
     private Runnable getTask() {
         boolean timedOut = false; // Did the last poll() time out?
 
-        // 无限循环，获取需要执行的任务
+        // 自旋，获取需要执行的任务
         for (;;) {
             int c = ctl.get();
             int rs = runStateOf(c);
@@ -1075,6 +1081,8 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
             // 判断是否允许核心线程超时，或者当前工作线程数大于核心线程数
             boolean timed = allowCoreThreadTimeOut || wc > corePoolSize;
 
+            // 判断是否需要回收临时线程：若条件成立，则通过 compareAndDecrementWorkerCount 函数更新当前线程总数，
+            // 更新成功后返回 null，从而导致 Worker.runWorker 方法中 while 循环条件不成立，线程允许结束后就会被回收
             if ((wc > maximumPoolSize || (timed && timedOut))
                 && (wc > 1 || workQueue.isEmpty())) {
                 if (compareAndDecrementWorkerCount(c))
@@ -1148,6 +1156,9 @@ public class ThreadPoolExecutor extends AbstractExecutorService {
         try {
             // execute 中传入的 Runnable 不为空，或者阻塞队列不为空
             while (task != null || (task = getTask()) != null) {
+                // 在执行 runWorker 时不存在线程安全问题（因为本身就是在 Runnable.run 方法中运行的），这里获取独占锁是为了判断是否可以进行中断。
+                // Worker 继承了 AQS 并实现了独占锁的功能（不可重入），通过是否成功获取独占锁来判断当前线程是否在运行。
+                // 当获取独占锁失败时，表示线程正在运行，无法调度或回收；反之，获取独占锁成功时，表示线程处于空闲状态，可以调度或回收。
                 w.lock();
                 // If pool is stopping, ensure thread is interrupted;
                 // if not, ensure thread is not interrupted.  This
